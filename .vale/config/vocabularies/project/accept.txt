@@ -1,0 +1,12 @@
+[Ff]rontmatter
+ascm
+Bazel
+gitleaks
+prek
+tbhb
+tailnet
+afakt
+afenc
+avirt
+awrel
+[Ee]vals?

@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Tony Burns
+
+"""Root module for building and checking tbhb-dev/evals."""
+
+module(name = "tbhb_dev_evals")
+
+# Shared gate rules. Not on the BCR, so they come from Git, pinned to a
+# commit on rules' main. To build against a local clone, put
+# `common --override_module=tbhb_rules=/path/to/rules` in .bazelrc.user.
+bazel_dep(name = "tbhb_rules", version = "0.0.0", dev_dependency = True)
+git_override(
+    module_name = "tbhb_rules",
+    commit = "b3262bfff7711c7327a240592d9b9345a800584a",
+    remote = "https://github.com/tbhb-dev/rules.git",
+)
+
+# The tool binaries @tbhb_rules pins, so the bazel_env shims and CI name
+# the same repositories and each tool keeps one pin.
+tools = use_extension("@tbhb_rules//pins:extensions.bzl", "tools")
+use_repo(
+    tools,
+    "tbhb_rules_actionlint",
+    "tbhb_rules_cog",
+    "tbhb_rules_editorconfig_checker",
+    "tbhb_rules_gitleaks",
+    "tbhb_rules_rumdl",
+    "tbhb_rules_ryl",
+    "tbhb_rules_shellcheck",
+    "tbhb_rules_shfmt",
+    "tbhb_rules_tombi",
+    "tbhb_rules_vale",
+    "tbhb_rules_zizmor",
+)
+
+# Dev dependencies: tooling that only this workspace needs.
+bazel_dep(name = "buildifier_prebuilt", version = "10.1.0", dev_dependency = True)
+bazel_dep(name = "bazelrc-preset.bzl", version = "1.10.0", dev_dependency = True)
+
+# Stable paths and PATH shims (.bazel_env/bin) for the Bazel-pinned tools,
+# which git hooks and editors call without starting Bazel.
+bazel_dep(name = "bazel_env.bzl", version = "0.10.0", dev_dependency = True)
+
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+# The Vale style packages .vale.ini lists under Packages, pinned by digest so
+# //:vale_test syncs them offline. Keep the URLs in step with .vale.ini.
+
+http_file(
+    name = "vale_google",
+    dev_dependency = True,
+    downloaded_file_path = "Google.zip",
+    sha256 = "4b67fca1f2a88595b2a578ab98bbf3017a23af677b04f93e862843f3ea1a9a0b",
+    url = "https://github.com/errata-ai/Google/releases/download/v0.7.1/Google.zip",
+)
+
+http_file(
+    name = "vale_write_good",
+    dev_dependency = True,
+    downloaded_file_path = "write-good.zip",
+    sha256 = "2960ef10861ddc7dc76292a4967eb3789bf05ca24f862042f6d15f53332887f0",
+    url = "https://github.com/errata-ai/write-good/releases/download/v0.4.1/write-good.zip",
+)
+
+http_file(
+    name = "vale_proselint",
+    dev_dependency = True,
+    downloaded_file_path = "proselint.zip",
+    sha256 = "48b1fb481ba44f6505d44346b283f6cdc74efd234f913bbdb09bf34420fab81c",
+    url = "https://github.com/errata-ai/proselint/releases/download/v0.3.4/proselint.zip",
+)
+
+http_file(
+    name = "vale_ai_tells",
+    dev_dependency = True,
+    downloaded_file_path = "ai-tells.zip",
+    sha256 = "f8d1e981abbfbac1aa092d1623a1ac9bc935f0b15e8071e7a072915abddf0570",
+    url = "https://github.com/tbhb/vale-ai-tells/releases/download/v1.37.0/ai-tells.zip",
+)
+
+http_file(
+    name = "vale_ai_tells_experimental",
+    dev_dependency = True,
+    downloaded_file_path = "ai-tells-experimental.zip",
+    sha256 = "d628f719afead6812028c2a31802d87c7572a931d9b16e94f2874d95e9d597b8",
+    url = "https://github.com/tbhb/vale-ai-tells/releases/download/v1.37.0/ai-tells-experimental.zip",
+)

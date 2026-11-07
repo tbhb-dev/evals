@@ -1,0 +1,23 @@
+{
+  "language": "en",
+  "ignorePaths": [
+    ".mise/**/*",
+    ".rumdl_cache/**/*",
+    ".vale/**/*",
+    ".venv/**/*",
+    "bazel-*/**/*",
+    ".bazel-*/**/*",
+    "coverage.xml",
+    "MODULE.bazel.lock",
+    "mise.lock",
+    "tmp/**/*"
+  ],
+  "dictionaryDefinitions": [
+    {
+      "name": "tbhbevals",
+      "path": "./.cspell-words.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["tbhbevals", "python"]
+}
