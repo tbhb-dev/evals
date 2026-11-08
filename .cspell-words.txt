@@ -12,6 +12,7 @@ buildcop
 buildifier
 bxox
 cgnat
+citecheck
 complexipy
 evals
 frontmatter
