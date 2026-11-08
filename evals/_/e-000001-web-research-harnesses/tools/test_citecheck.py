@@ -24,6 +24,28 @@ import citecheck
 
 BASE = "https://peer"
 HTTP_BASE = "http://peer"
+# 2000::/3 is global unicast; this address belongs to nobody.
+PUBLIC = "2000::1"
+NON_PUBLIC = {
+    "loopback": "127.0.0.1",
+    "link-local metadata": "169.254.169.254",
+    "private 10/8": "10.1.2.3",
+    "private 172.16/12": "172.16.0.9",
+    "private 192.168/16": "192.168.1.1",
+    "shared CGNAT 100.64/10": "100.100.0.1",
+    "unspecified": "0.0.0.0",
+    "IPv6 loopback": "::1",
+    "IPv6 ULA": "fd00::1",
+    "IPv6 link-local": "fe80::1",
+    "IPv4-mapped loopback": "::ffff:127.0.0.1",
+    "multicast": "ff02::1",
+}
+
+
+def resolver(table):
+    def resolve(host, port):
+        return table[host]
+    return resolve
 
 
 def answer_for(citations):
@@ -85,9 +107,57 @@ class FetchTests(unittest.TestCase):
     def fetch(self, routes, path="/page"):
         transport = FixtureTransport(routes)
         opener = build_opener(ProxyHandler({}), citecheck.WebRedirectHandler(), transport)
-        with patch.object(citecheck, "build_opener", return_value=opener):
+        with patch.object(citecheck, "build_opener", return_value=opener), \
+                patch.object(citecheck, "resolve", resolver(self.hosts)):
             result = citecheck.fetch_url(HTTP_BASE + path)
         return result, transport
+
+    def setUp(self):
+        self.hosts = {"peer": [PUBLIC]}
+
+    def test_non_public_hosts_are_never_fetched(self):
+        for label, address in NON_PUBLIC.items():
+            with self.subTest(label), patch.object(citecheck, "build_opener") as opener, \
+                    patch.object(citecheck, "resolve", resolver({"peer": [address]})):
+                result = citecheck.fetch_url(HTTP_BASE + "/page")
+                self.assertIn("non-public address", result.error)
+                self.assertNotIn(address, result.error)
+                self.assertIsNone(result.status)
+                self.assertIsNone(result.body)
+                opener.assert_not_called()
+
+    def test_any_non_public_address_blocks_the_host(self):
+        with patch.object(citecheck, "build_opener") as opener, \
+                patch.object(citecheck, "resolve", resolver({"peer": [PUBLIC, "10.0.0.1"]})):
+            result = citecheck.fetch_url(HTTP_BASE + "/page")
+        self.assertIn("non-public address", result.error)
+        opener.assert_not_called()
+
+    def test_redirect_to_non_public_host_is_refused(self):
+        self.hosts["internal"] = ["100.64.0.1"]
+        result, transport = self.fetch({
+            HTTP_BASE + "/page": (302, {"Location": "http://internal/secret"}, b""),
+        })
+        self.assertIn("non-public address", result.error)
+        self.assertIsNone(result.body)
+        self.assertEqual([r.full_url for r in transport.requests], [HTTP_BASE + "/page"])
+
+    def test_pinned_connection_uses_the_checked_address(self):
+        table = {"peer": [PUBLIC]}
+        with patch.object(citecheck, "resolve", resolver(table)), \
+                patch.object(citecheck.socket, "create_connection") as connect:
+            connection = citecheck.PinnedHTTPSConnection("peer", 443, timeout=5)
+            connection._create_connection(("peer", 443), 5, None)
+        connect.assert_called_once_with((PUBLIC, 443), 5, None)
+
+    def test_pinned_connection_rechecks_at_connect_time(self):
+        # A rebinding resolver answers public for the pre-check and private at connect.
+        with patch.object(citecheck, "resolve", resolver({"peer": ["127.0.0.1"]})), \
+                patch.object(citecheck.socket, "create_connection") as connect:
+            connection = citecheck.PinnedHTTPConnection("peer", 80, timeout=5)
+            with self.assertRaises(citecheck.BlockedAddress):
+                connection._create_connection(("peer", 80), 5, None)
+        connect.assert_not_called()
 
     def test_redirect_and_request_settings(self):
         result, transport = self.fetch({

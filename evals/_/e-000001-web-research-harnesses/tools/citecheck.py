@@ -15,14 +15,19 @@ from datetime import datetime, timezone
 import hashlib
 import html
 from html.parser import HTMLParser
+import http.client
+import ipaddress
 import json
 from pathlib import Path
 import re
+import socket
 import sys
 import unicodedata
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import (
+    HTTPHandler, HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener,
+)
 
 
 MAX_BYTES = 5_000_000
@@ -54,9 +59,81 @@ def validate_url(url):
     _ = parts.port
 
 
+class BlockedAddress(ValueError):
+    """A host resolves to an address that is not on the public internet."""
+
+
+def resolve(host, port):
+    """Return every address the host resolves to."""
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    return list(dict.fromkeys(info[4][0] for info in infos))
+
+
+def is_blocked(address):
+    """Refuse loopback, link-local, private, shared (CGNAT), ULA and other non-global space."""
+    ip = ipaddress.ip_address(address)
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return not ip.is_global or ip.is_multicast
+
+
+def checked_addresses(host, port):
+    """Resolve the host and refuse it unless every address is public.
+
+    The error names the host only, so an internal address never reaches the results.
+    """
+    addresses = resolve(host, port)
+    if not addresses or any(is_blocked(address) for address in addresses):
+        raise BlockedAddress(f"{host} resolves to a non-public address; not fetched")
+    return addresses
+
+
+def check_address(url):
+    parts = urlsplit(url)
+    default = 443 if parts.scheme.lower() == "https" else 80
+    checked_addresses(parts.hostname, parts.port or default)
+
+
+class PinnedConnection:
+    """Connect only to an address checked at connect time, which defeats DNS rebinding."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._create_connection = self._pinned_connection
+
+    def _pinned_connection(self, address, timeout, source_address=None):
+        host, port = address
+        error = None
+        for ip in checked_addresses(host, port):
+            try:
+                return socket.create_connection((ip, port), timeout, source_address)
+            except OSError as exc:
+                error = exc
+        raise error
+
+
+class PinnedHTTPConnection(PinnedConnection, http.client.HTTPConnection):
+    pass
+
+
+class PinnedHTTPSConnection(PinnedConnection, http.client.HTTPSConnection):
+    pass
+
+
+class PinnedHTTPHandler(HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(PinnedHTTPConnection, req)
+
+
+class PinnedHTTPSHandler(HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(PinnedHTTPSConnection, req, context=self._context)
+
+
 class WebRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         validate_url(newurl)
+        check_address(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -67,9 +144,13 @@ def fetch_url(url):
     fetched_at = utc_now()
     try:
         validate_url(url)
+        check_address(url)
         request = Request(url, headers={"User-Agent": USER_AGENT})
-        # A fresh opener has no cookie processor or shared cookie state.
-        opener = build_opener(WebRedirectHandler())
+        # A fresh opener has no cookie processor or shared cookie state. Proxies
+        # stay off so the address checks apply to the host actually reached.
+        opener = build_opener(
+            ProxyHandler({}), WebRedirectHandler(), PinnedHTTPHandler(), PinnedHTTPSHandler()
+        )
         try:
             response = opener.open(request, timeout=TIMEOUT)
         except HTTPError as exc:
