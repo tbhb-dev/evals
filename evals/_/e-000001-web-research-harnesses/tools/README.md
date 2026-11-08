@@ -31,3 +31,15 @@ Intervals come from a bootstrap that draws whole questions with replacement and 
 `consistency.csv` says whether every run of a system on a question got the same averaged accuracy. `per_judge.csv` keeps each judge's accuracy for each system before any averaging. Its self-preference row compares a judge's scores for its own family's system with the other judges' scores for the same runs. Treat a positive value as a description, not proof of bias.
 
 The same seed and input give identical reports, even with the rows shuffled. Run the tests with `python3 -m unittest discover -s evals/_/e-000001-web-research-harnesses/tools -v`.
+
+## Blinding tool
+
+`blind.py` hides which system wrote each answer before judges see it. Run `python3 blind.py prepare --runs <dir> --out <blinded-dir> --map <map.json>`, with `--scrub-file <words.txt>` for extra terms, one per line. Each run folder holds `run.json` and `answer.json`.
+
+Every run becomes one file named by a random label. The file keeps the question ID, the answer, confidence, `premise_ok`, the claims with their citations, and an `answer_status` of `ok`, `missing` or `invalid`. It drops `tools_used` and all run metadata, because tool names give the harness away. A missing or malformed answer still gets a file, so judges score it as a failure without learning why.
+
+The scrub replaces harness, model and vendor names, and model IDs, with `[redacted]` in answer and claim text. It leaves URLs and quotes unchanged, so the citation check still matches them.
+
+The map links each label to its run, system and question, with a scrub count. It has to live outside the blinded folder, and judges must never see it. Both commands refuse to overwrite an existing output.
+
+After grading, `python3 blind.py unblind --map <map.json> --scores <scores.csv> --out <graded.csv>` swaps each `label` for `run_id`, `system` and `question_id` and keeps the other columns. An unknown, blank, duplicate, or missing label stops it.
