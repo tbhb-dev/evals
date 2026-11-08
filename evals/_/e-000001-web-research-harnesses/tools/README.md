@@ -1,4 +1,6 @@
-# Citation checker
+# Grading tools
+
+## Citation checker
 
 `citecheck.py` fetches every URL that an answer cites and looks for the quoted text on that page. It follows HTTP and HTTPS redirects to record each final status code. Whether a source supports its claim is out of scope. A separate grading pass scores that.
 
@@ -11,3 +13,21 @@ It tries an exact match first. If that fails, it strips markup, folds case, widt
 Run `python3 citecheck.py --out results answer.json` with one or more answer files, each with a unique name. The tool writes `<input-stem>.citations.json` for each. It exits with code 2 when an input holds malformed JSON or breaks the answer schema, after it processes the valid inputs. Network and URL errors go into the records and never stop a run. It needs Python 3.12 or newer and nothing beyond the standard library.
 
 To run the tests from the repository root, use `python3 -m unittest discover -s evals/_/e-000001-web-research-harnesses/tools -v`. They inject fetches and use an in-memory transport, so they work offline.
+
+## Analysis tool
+
+`analyze.py` turns graded runs into the report tables. Run `python3 analyze.py graded.csv --out reports --seed 0 --resamples 10000` with Python 3.12 or newer and nothing beyond the standard library. Repeat `--judge-family judgeLabel=systemLabel` to tell it which judge shares a family with which system.
+
+Keep graded data and reports out of this repository.
+
+Each CSV row holds one judge's score for one run, with these columns: `run_id`, `system`, `question_id`, `stratum` (`S`, `R`, `N`, `M` or `F`), `drafted_by`, `round`, `accuracy` (0 to 2), `citation` (0 to 3), `recency` (0 to 2 for R questions, empty for the rest), `hallucinations`, `confidence` (`high`, `medium` or `low`), `wall_seconds`, `tokens` (may be empty), `cost_usd` (may be empty) and `judge`. A run ID stays the same across judges, and the tool rejects a second score from the same judge for one run.
+
+The tool averages the judges' grades within each run first and then weights runs equally. `summary.csv` and `summary.md` give each system's accuracy as a percent with a 95% interval, mean citation and recency scores, hallucinations per run, the share of runs with any hallucination, a Brier score, median and p90 wall time, and mean tokens and cost. Brier uses 0.9, 0.6 and 0.3 for the three confidence levels, and a run counts as correct only when its averaged accuracy is 2. Missing tokens or cost drop out of the means, and a column with no reports reads `unreported`.
+
+Intervals come from a bootstrap that draws whole questions with replacement and keeps all runs of each drawn question together. `by_stratum.csv` and `by_drafter.csv` repeat the accuracy interval for each stratum and each drafter. With one question the interval is one point, which says nothing about variation between questions.
+
+`pairwise.csv` compares each pair of systems over their shared questions, weighting questions equally, in percentage points (first system minus second). For each pair it reports a paired bootstrap interval and a two-sided sign-flip p-value from 10000 seeded draws, unadjusted for the number of pairs. The Markdown calls a pair "not distinguishable at this sample size" when the two accuracy intervals overlap or the paired interval contains zero, and it never ranks systems.
+
+`consistency.csv` says whether every run of a system on a question got the same averaged accuracy. `per_judge.csv` keeps each judge's accuracy for each system before any averaging. Its self-preference row compares a judge's scores for its own family's system with the other judges' scores for the same runs. Treat a positive value as a description, not proof of bias.
+
+The same seed and input give identical reports, even with the rows shuffled. Run the tests with `python3 -m unittest discover -s evals/_/e-000001-web-research-harnesses/tools -v`.
