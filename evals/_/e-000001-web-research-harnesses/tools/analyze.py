@@ -213,7 +213,17 @@ def pairwise_summary(left, right, rng, resamples):
     return result
 
 
+def family_map(families):
+    """Normalize {judge: system or systems} to {judge: sorted tuple of systems}.
+
+    A judge can share a family with more than one system under test.
+    """
+    return {judge: (value,) if isinstance(value, str) else tuple(sorted(set(value)))
+            for judge, value in (families or {}).items()}
+
+
 def judge_rows(runs, families):
+    families = family_map(families)
     scores = defaultdict(list)
     for run in runs:
         for grade in run.grades:
@@ -224,8 +234,8 @@ def judge_rows(runs, families):
                          questions=len({question for question, _ in values}),
                          accuracy_pct=statistics.fmean(value for _, value in values),
                          other_judges_accuracy_pct=UNREPORTED, self_preference_pp=UNREPORTED))
-    for judge in sorted({grade.judge for run in runs for grade in run.grades}):
-        system = families.get(judge)
+    for judge, system in sorted((judge, system) for judge in {grade.judge for run in runs for grade in run.grades}
+                                for system in families.get(judge) or (None,)):
         own, others, questions = [], [], set()
         for run in runs:
             by_judge = {grade.judge: grade.accuracy * 50 for grade in run.grades}
@@ -299,10 +309,11 @@ def write_markdown(path, summaries, pairs, seed, resamples):
 def analyze(runs, out, seed=0, resamples=10000, families=None):
     if resamples < 1:
         raise ValueError("resamples must be positive")
-    families = families or {}
+    families = family_map(families)
     systems = sorted({run.system for run in runs})
     judges = {grade.judge for run in runs for grade in run.grades}
-    if not set(families) <= judges or not set(families.values()) <= set(systems):
+    if (not set(families) <= judges or not all(families.values())
+            or not {system for value in families.values() for system in value} <= set(systems)):
         raise ValueError("judge-family labels must occur in the input")
     rng = random.Random(seed)
     grouped = {system: [run for run in runs if run.system == system] for system in systems}
@@ -346,9 +357,9 @@ def main(argv=None):
         families = {}
         for entry in args.judge_family:
             judge, separator, system = entry.partition("=")
-            if not separator or not judge or not system or judge in families:
-                raise ValueError("judge-family must be a unique JUDGE=SYSTEM mapping")
-            families[judge] = system
+            if not separator or not judge or not system or system in families.get(judge, ()):
+                raise ValueError("judge-family must be a unique JUDGE=SYSTEM pair")
+            families.setdefault(judge, []).append(system)
         analyze(read_runs(args.graded_csv), args.out, args.seed, args.resamples, families)
     except (ValueError, OSError) as error:
         parser.exit(2, f"error: {error}\n")

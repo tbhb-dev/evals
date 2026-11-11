@@ -119,6 +119,34 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(preference["judge-a"]["self_preference_pp"], 100)
         self.assertEqual(preference["judge-b"]["self_preference_pp"], "unreported")
 
+    def test_one_judge_can_share_a_family_with_two_systems(self):
+        runs = self.load([
+            row("a1", system="system-a", accuracy="2"),
+            row("a1", system="system-a", judge="judge-b", accuracy="0"),
+            row("c1", system="system-c", question_id="q-c", accuracy="2"),
+            row("c1", system="system-c", question_id="q-c", judge="judge-b", accuracy="2"),
+        ])
+        reports = analyze.judge_rows(runs, {"judge-a": ["system-c", "system-a"]})
+        preference = {(item["judge"], item["system"]): item for item in reports if item["kind"] == "self_preference"}
+        self.assertEqual(preference["judge-a", "system-a"]["self_preference_pp"], 100)
+        self.assertEqual(preference["judge-a", "system-c"]["self_preference_pp"], 0)
+        self.assertEqual(preference["judge-b", "unreported"]["self_preference_pp"], "unreported")
+        output = self.root / "two-systems"
+        completed = subprocess.run(
+            [sys.executable, str(Path(analyze.__file__)), str(self.source), "--out", str(output),
+             "--resamples", "50", "--judge-family", "judge-a=system-a", "--judge-family", "judge-a=system-c"],
+            capture_output=True, text=True, check=False)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        rows = [item for item in self.csv_rows(output, "per_judge.csv") if item["kind"] == "self_preference"]
+        self.assertEqual(sorted((item["judge"], item["system"]) for item in rows),
+                         [("judge-a", "system-a"), ("judge-a", "system-c"), ("judge-b", "unreported")])
+        duplicate = subprocess.run(
+            [sys.executable, str(Path(analyze.__file__)), str(self.source), "--out", str(output),
+             "--judge-family", "judge-a=system-a", "--judge-family", "judge-a=system-a"],
+            capture_output=True, text=True, check=False)
+        self.assertEqual(duplicate.returncode, 2)
+        self.assertIn("unique JUDGE=SYSTEM pair", duplicate.stderr)
+
     def test_empty_measurements_and_brier(self):
         runs = self.load([
             row("high", accuracy="2", confidence="high", wall_seconds="10"),

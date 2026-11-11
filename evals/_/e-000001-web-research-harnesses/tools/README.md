@@ -18,6 +18,8 @@ To run the tests from the repository root, use `python3 -m unittest discover -s 
 
 `analyze.py` turns graded runs into the report tables. Run `python3 analyze.py graded.csv --out reports --seed 0 --resamples 10000` with Python 3.12 or newer and nothing beyond the standard library. Repeat `--judge-family judgeLabel=systemLabel` to tell it which judge shares a family with which system.
 
+One judge can share its family with two systems. Each pair then gets its own self-preference row.
+
 Keep graded data and reports out of this repository.
 
 Each CSV row holds one judge's score for one run, with these columns: `run_id`, `system`, `question_id`, `stratum` (`S`, `R`, `N`, `M` or `F`), `drafted_by`, `round`, `accuracy` (0 to 2), `citation` (0 to 3), `recency` (0 to 2 for R questions, empty for the rest), `hallucinations`, `confidence` (`high`, `medium` or `low`), `wall_seconds`, `tokens` (may be empty), `cost_usd` (may be empty) and `judge`. A run ID stays the same across judges, and the tool rejects a second score from the same judge for one run.
