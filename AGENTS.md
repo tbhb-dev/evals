@@ -7,6 +7,7 @@ This is tbhb-dev/evals, the public repository of evaluations for tbhb-dev work. 
 - Everything here is public. Never write a private repository's name, a private host name, tailnet details, an internal URL, or anything from private work. Refer to a machine by its role, such as `peer-mac` or `linux-peer`.
 - Never write a public IP address in a commit, a pull request, or a document. The `public-ipv4` gitleaks rule enforces this.
 - Never open credential files, print secrets, or commit secret values. Secrets live in 1Password only.
+- Before choosing a model for a subagent or peer run, read models/README.md in tbhb-dev/wiki (<https://github.com/tbhb-dev/wiki/blob/main/models/README.md>).
 
 ## Writing an eval
 
