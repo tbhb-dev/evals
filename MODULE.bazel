@@ -11,7 +11,7 @@ module(name = "tbhb_dev_evals")
 bazel_dep(name = "tbhb_rules", version = "0.0.0", dev_dependency = True)
 git_override(
     module_name = "tbhb_rules",
-    commit = "ee2995544501ca1baa6f2d091541b759b9ce55ea",
+    commit = "90c4054c67304574d83c82e0b7a4763ceaa85748",
     remote = "https://github.com/tbhb-dev/rules.git",
 )
 
@@ -23,7 +23,6 @@ use_repo(
     "tbhb_rules_actionlint",
     "tbhb_rules_cog",
     "tbhb_rules_editorconfig_checker",
-    "tbhb_rules_gitleaks",
     "tbhb_rules_rumdl",
     "tbhb_rules_ryl",
     "tbhb_rules_shellcheck",
