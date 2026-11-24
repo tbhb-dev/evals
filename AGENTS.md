@@ -20,7 +20,7 @@ This is tbhb-dev/evals, the public repository of evaluations for tbhb-dev work. 
 
 ## Commits and pull requests
 
-- Branch first, as `eval/<ns>/e-NNNNNN-<slug>`. Every change lands through a pull request.
+- Branch first, as `agent/e-NNNNNN-<slug>`, because the rules `commit_identity` check requires an `agent/` head branch for agent commits. Every change lands through a pull request.
 - Use Conventional Commits and a plain `git commit`, without `Signed-off-by` or `Co-authored-by`, and fill every section of `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ## Checks
