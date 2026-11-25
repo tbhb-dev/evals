@@ -28,7 +28,7 @@ The tool averages the judges' grades within each run first and then weights runs
 
 Intervals come from a bootstrap that draws whole questions with replacement and keeps all runs of each drawn question together. `by_stratum.csv` and `by_drafter.csv` repeat the accuracy interval for each stratum and each drafter. With one question the interval is one point, which says nothing about variation between questions.
 
-`pairwise.csv` compares each pair of systems over their shared questions, weighting questions equally, in percentage points (first system minus second). For each pair it reports a paired bootstrap interval and a two-sided sign-flip p-value from 10000 seeded draws, unadjusted for the number of pairs. The Markdown calls a pair "not distinguishable at this sample size" when the two accuracy intervals overlap or the paired interval contains zero, and it never ranks systems.
+`pairwise.csv` compares each pair of systems over their shared questions, weighting questions equally, in percentage points (first system minus second). For each pair it reports a paired bootstrap interval and a two-sided sign-flip p-value from 10000 seeded draws, unadjusted for the number of pairs. The Markdown calls a pair “not distinguishable at this sample size” when the two accuracy intervals overlap or the paired interval contains zero, and it never ranks systems.
 
 `consistency.csv` says whether every run of a system on a question got the same averaged accuracy. `per_judge.csv` keeps each judge's accuracy for each system before any averaging. Its self-preference row compares a judge's scores for its own family's system with the other judges' scores for the same runs. Treat a positive value as a description, not proof of bias.
 
