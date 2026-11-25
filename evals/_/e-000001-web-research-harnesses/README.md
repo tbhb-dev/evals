@@ -5,12 +5,12 @@ title: Which agent harness does the best web research
 state: designed
 generated:
   - role: generated
-    harness: claude-code:2.1.322
-    model: anthropic:claude-opus-5-5
-    effort: medium
+    harness: antigravity:1.5.17
+    model: gcp.gemini:gemini-4-argon
+    effort: high
     surface: cli
-    session: sha-256-64:6ed5a3a4b9558ce5
-    at: "2026-11-11T18:18:56Z"
+    session: sha-256-64:b69e1424b52fc5f5
+    at: "2026-11-25T13:44:40Z"
 ---
 
 # Which agent harness does the best web research
@@ -40,7 +40,7 @@ In the full set, 32 questions fall into five strata. Each question has a short c
 | Recent | 8 | Facts that changed in the weeks before the run |
 | Niche | 8 | Answers found only in changelogs, standards, and small project docs |
 | Multi-hop | 5 | Answers that need two or three sources |
-| False premise | 5 | Questions whose right answer is "no such thing" or "not public" |
+| False premise | 5 | Questions whose right answer is “no such thing” or “not public” |
 
 A pilot of 8 questions came first, with every question run three times per harness for 72 scored runs. Every system answered nearly every pilot question correctly, so the pilot couldn't separate them. The full run uses 32 new questions, each run three times per system, which comes to 384 scored runs with all four systems.
 
